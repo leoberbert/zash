@@ -14,17 +14,22 @@ jobs:
     steps:
       - name: Install build prerequisites
         run: |
-          pacman -Syu --noconfirm git base-devel
+          pacman -Syu --noconfirm git base-devel sudo
       - uses: actions/checkout@v4
       - name: Install runtime deps required by PKGBUILD
         run: |
           pacman -S --noconfirm \
             python python-build python-installer python-uv-build python-wheel \
             gtk4 libadwaita vte4 libsecret rsync sshpass
+      - name: Create build user
+        run: |
+          useradd -m builder
+          echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
+          chown -R builder:builder /__w
       - name: Build package
         working-directory: pkgbuild
         run: |
-          makepkg -s --noconfirm
+          sudo -u builder makepkg -s --noconfirm
       - name: Upload Arch package
         uses: actions/upload-artifact@v4
         with:
@@ -53,14 +58,16 @@ jobs:
         run: |
           set -e
           wheel=$(ls dist/*.whl)
-          fpm -s python -t deb "$wheel" \
+          fpm -s python -t deb \
             --no-python-dependencies \
             --maintainer "Leonardo Berbert <leo4berbert@gmail.com>" \
-            --url "https://github.com/leoberbert/zash"
-          fpm -s python -t rpm "$wheel" \
+            --url "https://github.com/leoberbert/zash" \
+            "$wheel"
+          fpm -s python -t rpm \
             --no-python-dependencies \
             --maintainer "Leonardo Berbert <leo4berbert@gmail.com>" \
-            --url "https://github.com/leoberbert/zash"
+            --url "https://github.com/leoberbert/zash" \
+            "$wheel"
       - name: Upload DEB/RPM
         uses: actions/upload-artifact@v4
         with:
