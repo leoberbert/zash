@@ -1,0 +1,66 @@
+#Maintainer: Leonardo Berbert <leo4berbert@gmail.com>
+
+pkgname=zash
+pkgdesc="A modern GTK4/Adwaita terminal emulator with advanced session management, SSH integration, and security features."
+
+depends=(
+    'gtk4'
+    'libadwaita'
+    'libsecret'
+    'python'
+    'python-py7zr'
+    'python-gobject'
+    'python-setproctitle'
+    'python-requests'
+    'python-psutil'
+    'sshpass'
+    'rsync'
+    'vte4'
+    'libchildenv' # Optional, but recommended to improve GTK memory management.
+    'mimalloc' # Optional, but recommended to improve GTK memory management.
+    'python-regex' # Optional, Improved syntax highlighting performance'
+    'python-pygments' # Optional, Enhanced syntax highlighting in AI chat'
+)
+makedepends=(
+    'python-build'
+    'python-installer'
+    'python-uv-build'
+    'python-wheel'
+)
+
+conflicts=()
+provides=('zash')
+replaces=()
+
+pkgver=$(date +%y.%m.%d)
+pkgrel=$(date +%H%M)
+
+arch=('any')
+license=('MIT')
+url="https://github.com/leoberbert/${pkgname}"
+source=("git+${url}.git")
+md5sums=('SKIP')
+
+build() {
+    cd "${srcdir}/${pkgname}"
+    python -m build --wheel --no-isolation --skip-dependency-check
+}
+
+package() {
+    cd "${srcdir}/${pkgname}"
+
+    python -m installer --destdir="$pkgdir" dist/*.whl
+
+    # Install files
+    cp -a usr/share "${pkgdir}/usr/share"
+
+    # Install license file if present
+    if [ -f "LICENSE" ]; then
+        install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+    fi
+
+    # Install documentation if present
+    if [ -f "README.md" ]; then
+        install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+    fi
+}

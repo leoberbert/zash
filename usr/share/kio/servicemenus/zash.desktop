@@ -1,0 +1,39 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin
+MimeType=inode/directory;
+Actions=OpenTerminalHere;
+X-KDE-Priority=TopLevel
+Icon=zash
+
+[Desktop Action OpenTerminalHere]
+Icon=zash
+Name=Open in Zash
+Name[pt]=Abrir no Zash
+Name[es]=Abrir en Zash
+Name[bg]=Отвори в Zash
+Name[cs]=Otevřít v Zash
+Name[da]=Åbn i Zash
+Name[de]=In Zash öffnen
+Name[el]=Άνοιγμα στο Zash
+Name[et]=Ava Zashis
+Name[fi]=Avaa Zashissa
+Name[fr]=Ouvrir dans Zash
+Name[he]=פתח ב-Zash
+Name[hr]=Otvori u Zashu
+Name[hu]=Megnyitás Zashban
+Name[is]=Opna í Zash
+Name[it]=Apri in Zash
+Name[ja]=Zashで開く
+Name[ko]=Zash에서 열기
+Name[nl]=Openen in Zash
+Name[no]=Åpne i Zash
+Name[pl]=Otwórz w Zash
+Name[ro]=Deschide în Zash
+Name[ru]=Открыть в Zash
+Name[sk]=Otvoriť v Zash
+Name[sv]=Öppna i Zash
+Name[tr]=Zash’de aç
+Name[uk]=Відкрити в Zash
+Name[zh]=在 Zash 中打开
+Exec=zash --working-directory %f

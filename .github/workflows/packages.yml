@@ -1,0 +1,70 @@
+name: Build Packages
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  arch:
+    name: Arch PKGBUILD
+    runs-on: ubuntu-latest
+    container: archlinux:latest
+    steps:
+      - name: Install build prerequisites
+        run: |
+          pacman -Syu --noconfirm git base-devel
+      - uses: actions/checkout@v4
+      - name: Install runtime deps required by PKGBUILD
+        run: |
+          pacman -S --noconfirm \
+            python python-build python-installer python-uv-build python-wheel \
+            gtk4 libadwaita vte4 libsecret rsync sshpass
+      - name: Build package
+        working-directory: pkgbuild
+        run: |
+          makepkg -s --noconfirm
+      - name: Upload Arch package
+        uses: actions/upload-artifact@v4
+        with:
+          name: zash-arch
+          path: pkgbuild/*.pkg.tar.zst
+
+  deb_rpm:
+    name: DEB & RPM via fpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+          python -m build --wheel
+      - name: Install fpm toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm
+          sudo gem install --no-document fpm
+      - name: Build .deb and .rpm
+        run: |
+          set -e
+          wheel=$(ls dist/*.whl)
+          fpm -s python -t deb "$wheel" \
+            --no-python-dependencies \
+            --maintainer "Leonardo Berbert <leo4berbert@gmail.com>" \
+            --url "https://github.com/leoberbert/zash"
+          fpm -s python -t rpm "$wheel" \
+            --no-python-dependencies \
+            --maintainer "Leonardo Berbert <leo4berbert@gmail.com>" \
+            --url "https://github.com/leoberbert/zash"
+      - name: Upload DEB/RPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: zash-deb-rpm
+          path: |
+            *.deb
+            *.rpm

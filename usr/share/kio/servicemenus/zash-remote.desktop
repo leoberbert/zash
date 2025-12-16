@@ -1,0 +1,40 @@
+[Desktop Entry]
+Type=Service
+ServiceTypes=KonqPopupMenu/Plugin
+MimeType=inode/directory
+X-KDE-Protocols=sftp,ssh,fish
+Actions=OpenSSHConnection
+X-KDE-Priority=TopLevel
+Icon=zash
+
+[Desktop Action OpenSSHConnection]
+Icon=zash
+Name=Open in Zash (SSH)
+Name[pt]=Abrir no Zash (SSH)
+Name[es]=Abrir en Zash (SSH)
+Name[bg]=Отвори в Zash (SSH)
+Name[cs]=Otevřít v Zash (SSH)
+Name[da]=Åbn i Zash (SSH)
+Name[de]=In Zash öffnen (SSH)
+Name[el]=Άνοιγμα στο Zash (SSH)
+Name[et]=Ava Zashis (SSH)
+Name[fi]=Avaa Zashissa (SSH)
+Name[fr]=Ouvrir dans Zash (SSH)
+Name[he]=פתח ב-Zash (SSH)
+Name[hr]=Otvori u Zashu (SSH)
+Name[hu]=Megnyitás Zashban (SSH)
+Name[is]=Opna í Zash (SSH)
+Name[it]=Apri in Zash (SSH)
+Name[ja]=Zashで開く (SSH)
+Name[ko]=Zash에서 열기 (SSH)
+Name[nl]=Openen in Zash (SSH)
+Name[no]=Åpne i Zash (SSH)
+Name[pl]=Otwórz w Zash (SSH)
+Name[ro]=Deschide în Zash (SSH)
+Name[ru]=Открыть в Zash (SSH)
+Name[sk]=Otvoriť v Zash (SSH)
+Name[sv]=Öppna i Zash (SSH)
+Name[tr]=Zash’de aç (SSH)
+Name[uk]=Відкрити в Zash (SSH)
+Name[zh]=在 Zash 中打开 (SSH)
+Exec=zash --convert-to-ssh "%u"
