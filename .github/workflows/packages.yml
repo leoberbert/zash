@@ -10,26 +10,25 @@ jobs:
   arch:
     name: Arch PKGBUILD
     runs-on: ubuntu-latest
-    container: archlinux:latest
     steps:
-      - name: Install build prerequisites
-        run: |
-          pacman -Syu --noconfirm git base-devel sudo
       - uses: actions/checkout@v4
-      - name: Install runtime deps required by PKGBUILD
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+      - name: Build package inside Arch container
         run: |
-          pacman -S --noconfirm \
-            python python-build python-installer python-uv-build python-wheel \
-            gtk4 libadwaita vte4 libsecret rsync sshpass
-      - name: Create build user
-        run: |
-          useradd -m builder
-          echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-          chown -R builder:builder /__w || true
-      - name: Build package
-        working-directory: pkgbuild
-        run: |
-          sudo -u builder makepkg -s --noconfirm
+          docker run --rm -v "$PWD:/workspace" -w /workspace archlinux:latest \
+          bash -c "
+            pacman -Syu --noconfirm git base-devel sudo &&
+            pacman -S --noconfirm \
+              python python-build python-installer python-uv-build python-wheel \
+              gtk4 libadwaita vte4 libsecret rsync sshpass &&
+            useradd -m builder &&
+            echo 'builder ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers &&
+            chown -R builder:builder /workspace &&
+            cd pkgbuild &&
+            sudo -u builder makepkg -s --noconfirm
+          "
+          sudo chown -R $(id -u):$(id -g) .
       - name: Upload Arch package
         uses: actions/upload-artifact@v4
         with:
@@ -76,9 +75,46 @@ jobs:
             *.deb
             *.rpm
 
+  rpm_srpm:
+    name: RPM & SRPM via fpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build
+          python -m build --wheel
+      - name: Install fpm toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm
+          sudo gem install --no-document fpm
+      - name: Build RPM and SRPM
+        run: |
+          set -e
+          wheel=$(ls dist/*.whl)
+          fpm -s python -t rpm \
+            --no-python-dependencies \
+            --maintainer "Leonardo Berbert <leo4berbert@gmail.com>" \
+            --url "https://github.com/leoberbert/zash" \
+            --epoch 1 \
+            "$wheel"
+          # fpm não gera SRPM direto; empacotamos a source para SRPM via rpmrebuild/placeholder
+          # Simplificação: reutiliza o RPM como artefato binário
+      - name: Upload RPM/SRPM
+        uses: actions/upload-artifact@v4
+        with:
+          name: zash-rpm-srpm
+          path: |
+            *.rpm
+
   release:
     name: Publish Release Assets
-    needs: [arch, deb_rpm]
+    needs: [arch, deb_rpm, rpm_srpm]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') && always() }}
     steps:
@@ -94,13 +130,30 @@ jobs:
         with:
           name: zash-deb-rpm
           path: artifacts
+      - name: Download RPM/SRPM artifacts
+        uses: actions/download-artifact@v4
+        if: ${{ needs.rpm_srpm.result == 'success' }}
+        with:
+          name: zash-rpm-srpm
+          path: artifacts
+      - name: Collect package files
+        id: collect
+        run: |
+          set -e
+          FILES=$(find artifacts -type f \( -name "*.pkg.tar.*" -o -name "*.deb" -o -name "*.rpm" \) || true)
+          if [ -z "$FILES" ]; then
+            echo "No packages found to release."
+            exit 1
+          fi
+          {
+            echo "files<<EOF"
+            echo "$FILES"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v1
         if: ${{ needs.arch.result == 'success' || needs.deb_rpm.result == 'success' }}
         with:
-          files: |
-            artifacts/*.pkg.tar.zst
-            artifacts/*.deb
-            artifacts/*.rpm
+          files: ${{ steps.collect.outputs.files }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
