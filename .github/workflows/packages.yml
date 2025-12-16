@@ -6,6 +6,9 @@ on:
       - "v*"
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   arch:
     name: Arch PKGBUILD
@@ -142,7 +145,10 @@ jobs:
         id: collect
         run: |
           set -e
-          FILES=$(find artifacts -type f \( -name "*.pkg.tar.*" -o -name "*.deb" -o -name "*.rpm" \) || true)
+          mkdir -p release
+          find artifacts -type f \( -name "*.pkg.tar.*" -o -name "*.deb" -o -name "*.rpm" \) -exec cp {} release/ \; || true
+          ls -l release || true
+          FILES=$(find release -maxdepth 1 -type f \( -name "*.pkg.tar.*" -o -name "*.deb" -o -name "*.rpm" \) || true)
           if [ -z "$FILES" ]; then
             echo "No packages found to release."
             exit 1
@@ -154,7 +160,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v1
-        if: ${{ needs.arch.result == 'success' || needs.deb_rpm.result == 'success' }}
+        if: ${{ needs.arch.result == 'success' || needs.deb_rpm.result == 'success' || needs.rpm_srpm.result == 'success' }}
         with:
           files: ${{ steps.collect.outputs.files }}
         env:
