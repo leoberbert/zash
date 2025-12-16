@@ -63,11 +63,13 @@ jobs:
           set -e
           wheel=$(ls dist/*.whl)
           fpm -s python -t deb \
+            --name zash \
             --no-python-dependencies \
             --maintainer "Leonardo Berbert <leo4berbert@gmail.com>" \
             --url "https://github.com/leoberbert/zash" \
             "$wheel"
           fpm -s python -t rpm \
+            --name zash \
             --no-python-dependencies \
             --maintainer "Leonardo Berbert <leo4berbert@gmail.com>" \
             --url "https://github.com/leoberbert/zash" \
@@ -103,6 +105,7 @@ jobs:
           set -e
           wheel=$(ls dist/*.whl)
           fpm -s python -t rpm \
+            --name zash \
             --no-python-dependencies \
             --maintainer "Leonardo Berbert <leo4berbert@gmail.com>" \
             --url "https://github.com/leoberbert/zash" \
