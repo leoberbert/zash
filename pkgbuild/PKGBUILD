@@ -30,8 +30,8 @@ conflicts=()
 provides=('zash')
 replaces=()
 
-pkgver=$(date +%y.%m.%d)
-pkgrel=$(date +%H%M)
+pkgver=${PKGVER:-$(date +%y.%m.%d)}
+pkgrel=${PKGREL:-$(date +%H%M)}
 
 arch=('any')
 license=('MIT')
