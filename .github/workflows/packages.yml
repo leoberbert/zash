@@ -25,7 +25,8 @@ jobs:
         run: |
           useradd -m builder
           echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-          chown -R builder:builder /__w
+          chown -R builder:builder /__w /home/runner/work
+          chmod -R a+r /home/runner/work/_temp/_github_workflow
       - name: Build package
         working-directory: pkgbuild
         run: |
