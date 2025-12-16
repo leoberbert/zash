@@ -25,8 +25,11 @@ jobs:
         run: |
           useradd -m builder
           echo "builder ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
-          chown -R builder:builder /__w /home/runner/work
-          chmod -R a+r /home/runner/work/_temp/_github_workflow
+          chown -R builder:builder /__w || true
+          if [ -n "${GITHUB_EVENT_PATH:-}" ] && [ -f "${GITHUB_EVENT_PATH}" ]; then
+            chown builder:builder "${GITHUB_EVENT_PATH}" || true
+            chmod a+r "${GITHUB_EVENT_PATH}" || true
+          fi
       - name: Build package
         working-directory: pkgbuild
         run: |
@@ -76,3 +79,29 @@ jobs:
           path: |
             *.deb
             *.rpm
+
+  release:
+    name: Publish Release Assets
+    needs: [arch, deb_rpm]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - name: Download Arch artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: zash-arch
+          path: artifacts
+      - name: Download DEB/RPM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: zash-deb-rpm
+          path: artifacts
+      - name: Publish GitHub Release assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/*.pkg.tar.zst
+            artifacts/*.deb
+            artifacts/*.rpm
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
