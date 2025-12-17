@@ -105,7 +105,9 @@ jobs:
           set -e
           VERSION="${GITHUB_REF##*/v}"
           DEB_DEPS=(
+            python3
             python3-gi
+            python3-gi-cairo
             python3-cairo
             python3-requests
             python3-psutil
@@ -115,10 +117,11 @@ jobs:
             python3-py7zr
             gir1.2-gtk-4.0
             gir1.2-adw-1
-            gir1.2-vte-2.91
+            "gir1.2-vte-3.91 | gir1.2-vte-2.91"
             libgtk-4-1
             libadwaita-1-0
             libvte-2.91-gtk4-0
+            gobject-introspection
             rsync
             sshpass
           )

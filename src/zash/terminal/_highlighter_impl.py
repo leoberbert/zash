@@ -33,7 +33,7 @@ import gi
 
 gi.require_version("Vte", "3.91")
 gi.require_version("GLib", "2.0")
-from gi.repository import GLib, Vte
+from gi.repository import GLib, Vte, GObject
 
 # Use regex module (PCRE2 backend) for ~50% faster matching
 import regex as re_engine
@@ -127,6 +127,7 @@ class HighlightedTerminalProxy:
         self._columns_handler_id: Optional[int] = None
         self._rows_handler_id: Optional[int] = None
         self._destroy_handler_id: Optional[int] = None
+        self._termprop_handler_id: Optional[int] = None
 
         self._running = False
         self._widget_destroyed = False
@@ -174,10 +175,26 @@ class HighlightedTerminalProxy:
             self._destroy_handler_id = terminal.connect(
                 "destroy", self._on_widget_destroy
             )
-            # Use VTE's native shell integration for prompt detection
-            self._termprop_handler_id = terminal.connect(
-                "termprop-changed", self._on_termprop_changed
+            # Use VTE's native shell integration for prompt detection when available.
+            # Older VTE releases (e.g. Ubuntu 22.04) don't expose termprop-changed.
+            self._termprop_handler_id = self._connect_termprop_signal(terminal)
+
+    def _connect_termprop_signal(self, terminal: Vte.Terminal) -> Optional[int]:
+        """Connect termprop-changed if supported by the runtime VTE version."""
+        try:
+            signal_id = GObject.signal_lookup("termprop-changed", terminal.__gtype__)
+            if signal_id == 0:
+                self.logger.info(
+                    "VTE termprop-changed signal not available; falling back to OSC7/prompt heuristics"
+                )
+                return None
+            return terminal.connect("termprop-changed", self._on_termprop_changed)
+        except Exception as exc:
+            self.logger.warning(
+                "Failed to connect termprop-changed; fallback prompt detection enabled: %s",
+                exc,
             )
+            return None
 
     def _on_termprop_changed(self, terminal: Vte.Terminal, prop: str) -> None:
         """Handle VTE termprop changes for shell integration."""
@@ -2321,4 +2338,3 @@ class HighlightedTerminalProxy:
                 self.set_window_size(rows, cols)
         except Exception:
             pass
-
