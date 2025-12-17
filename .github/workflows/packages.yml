@@ -69,18 +69,18 @@ jobs:
           cp -a usr/share pkgroot/usr/
           # Move pure Python site-packages into a version-agnostic path for deb/rpm
           python - <<'PY'
-import pathlib, shutil
-root = pathlib.Path("pkgroot")
-site_roots = list(root.glob("usr/local/lib/python3.*"))
-for sr in site_roots:
-    sp = sr / "site-packages"
-    if sp.is_dir():
-        target = root / "usr/lib/python3/dist-packages"
-        target.mkdir(parents=True, exist_ok=True)
-        for item in sp.iterdir():
-            shutil.move(str(item), target / item.name)
-    shutil.rmtree(sr, ignore_errors=True)
-PY
+          import pathlib, shutil
+          root = pathlib.Path("pkgroot")
+          site_roots = list(root.glob("usr/local/lib/python3.*"))
+          for sr in site_roots:
+              sp = sr / "site-packages"
+              if sp.is_dir():
+                  target = root / "usr/lib/python3/dist-packages"
+                  target.mkdir(parents=True, exist_ok=True)
+                  for item in sp.iterdir():
+                      shutil.move(str(item), target / item.name)
+              shutil.rmtree(sr, ignore_errors=True)
+          PY
           ls -R pkgroot
       - name: Build .deb and .rpm
         run: |
