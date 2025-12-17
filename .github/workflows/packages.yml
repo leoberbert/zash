@@ -67,16 +67,15 @@ jobs:
           mkdir -p pkgroot/usr/bin pkgroot/usr/share
           cp -a usr/bin pkgroot/usr/
           cp -a usr/share pkgroot/usr/
-          # Move pure Python site-packages into a versioned dist-packages path for deb/rpm
+          # Move pure Python site-packages into a dist-packages path for deb/rpm
           python - <<'PY'
-          import pathlib, shutil, sys
+          import pathlib, shutil
           root = pathlib.Path("pkgroot")
-          py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
           site_roots = list(root.glob("usr/local/lib/python3.*"))
           for sr in site_roots:
               sp = sr / "site-packages"
               if sp.is_dir():
-                  target = root / f"usr/lib/python{py_ver}/dist-packages"
+                  target = root / "usr/lib/python3/dist-packages"
                   target.mkdir(parents=True, exist_ok=True)
                   for item in sp.iterdir():
                       shutil.move(str(item), target / item.name)

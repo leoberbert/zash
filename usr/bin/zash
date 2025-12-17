@@ -1,12 +1,29 @@
 #!/bin/bash
 
-# Choose available Python interpreter (prefer python3)
-PYTHON_BIN="python3"
-if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
-    PYTHON_BIN="python"
+# Try running as a module if available
+if command -v python3 >/dev/null 2>&1; then
+    python3 -m zash "$@" && exit 0
 fi
 
-execute_zash="$PYTHON_BIN -m zash"
+# Fallback: search installed paths and run __init__.py directly
+SEARCH_DIRS=(
+    /usr/lib/python3/dist-packages/zash
+    /usr/lib/python3.*/dist-packages/zash
+    /usr/lib/python3.*/site-packages/zash
+    /usr/share/zash
+)
+
+for i in "${SEARCH_DIRS[@]}"; do
+    for d in $i; do
+        if [[ -e "$d/__init__.py" ]]; then
+            cd "$d"
+            exec python3 __init__.py "$@"
+        fi
+    done
+done
+
+echo "zash: unable to locate installed module." >&2
+exit 1
 
 execute_with_memory_verification() {
     # Changes the default memory allocator to reduce GTK4 memory leaks with verification
