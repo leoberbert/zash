@@ -90,6 +90,13 @@ jobs:
               t.mkdir(parents=True, exist_ok=True)
 
           def copy_item(src: pathlib.Path, dest: pathlib.Path):
+              # Avoid SameFileError when src/dest resolve to the same path
+              try:
+                  if src.resolve() == dest.resolve():
+                      return
+              except Exception:
+                  pass
+
               if src.is_dir():
                   shutil.copytree(src, dest, dirs_exist_ok=True)
               else:
