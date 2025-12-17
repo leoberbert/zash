@@ -1,14 +1,12 @@
 #!/bin/bash
 
-# Locate the installed zash package
-for i in /usr/lib/python3.{25..6}/site-packages/zash /usr/share/zash; do
-    if [[ -e "$i" ]]; then
-        cd "$i"
-        break
-    fi
-done
+# Choose available Python interpreter (prefer python3)
+PYTHON_BIN="python3"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
+    PYTHON_BIN="python"
+fi
 
-execute_zash="python3 __init__.py"
+execute_zash="$PYTHON_BIN -m zash"
 
 execute_with_memory_verification() {
     # Changes the default memory allocator to reduce GTK4 memory leaks with verification
