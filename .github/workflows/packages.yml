@@ -68,7 +68,8 @@ jobs:
           cp -a usr/bin pkgroot/usr/
           cp -a usr/share pkgroot/usr/
           # Vendor py7zr (and deps) so backup works on distros without repo packages
-          python -m pip install --no-compile --target pkgroot/usr/lib/python3/dist-packages py7zr
+          python -m pip install --no-compile --target pkgroot/usr/lib/python3/site-packages py7zr
+          python -m pip install --no-compile --target pkgroot/usr/lib64/python3/site-packages py7zr
           # Move/copy pure Python site-packages into Debian-friendly dist-packages paths
           python - <<'PY'
           import pathlib, shutil, sys
@@ -76,8 +77,14 @@ jobs:
           root = pathlib.Path("pkgroot")
           py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
           targets = [
-              root / "usr/lib/python3/dist-packages",
-              root / f"usr/lib/python{py_ver}/dist-packages",
+              root / "usr/lib64/python3/site-packages",        # Fedora-style lib64
+              root / f"usr/lib64/python{py_ver}/site-packages",
+              root / "usr/lib64/python3/dist-packages",        # fallback dist path if used
+              root / f"usr/lib64/python{py_ver}/dist-packages",
+              root / "usr/lib/python3/site-packages",
+              root / f"usr/lib/python{py_ver}/site-packages",
+              root / "usr/lib/python3/dist-packages",          # Debian-style
+              root / f"usr/lib/python{py_ver}/dist-packages",  # Debian-style with version
           ]
           for t in targets:
               t.mkdir(parents=True, exist_ok=True)
@@ -91,7 +98,14 @@ jobs:
 
           # Collect any site-packages produced under different prefixes (e.g., /opt/hostedtoolcache/...)
           site_roots = []
-          for pattern in ("usr/local/lib/python3.*", "opt/**/lib/python3.*"):
+          for pattern in (
+              "usr/local/lib/python3.*",
+              "usr/local/lib64/python3.*",
+              "usr/lib/python3.*",
+              "usr/lib64/python3.*",
+              "opt/**/lib/python3.*",
+              "opt/**/lib64/python3.*",
+          ):
               site_roots.extend(root.glob(pattern))
 
           for sr in site_roots:
