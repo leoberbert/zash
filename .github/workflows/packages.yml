@@ -73,10 +73,6 @@ jobs:
 
           root = pathlib.Path("pkgroot")
           py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
-          site_roots = list(root.glob("usr/local/lib/python3.*"))
-          if not site_roots:
-              sys.exit(0)
-
           targets = [
               root / "usr/lib/python3/dist-packages",
               root / f"usr/lib/python{py_ver}/dist-packages",
@@ -91,13 +87,22 @@ jobs:
                   dest.parent.mkdir(parents=True, exist_ok=True)
                   shutil.copy2(src, dest)
 
+          # Collect any site-packages produced under different prefixes (e.g., /opt/hostedtoolcache/...)
+          site_roots = []
+          for pattern in ("usr/local/lib/python3.*", "opt/**/lib/python3.*"):
+              site_roots.extend(root.glob(pattern))
+
           for sr in site_roots:
               sp = sr / "site-packages"
-              if sp.is_dir():
-                  for item in sp.iterdir():
-                      for target in targets:
-                          copy_item(item, target / item.name)
-              shutil.rmtree(sr, ignore_errors=True)
+              if not sp.is_dir():
+                  continue
+              for item in sp.iterdir():
+                  for target in targets:
+                      copy_item(item, target / item.name)
+          # Drop any stray /opt prefix left by the build environment
+          opt_dir = root / "opt"
+          if opt_dir.exists():
+              shutil.rmtree(opt_dir, ignore_errors=True)
           PY
           ls -R pkgroot
       - name: Build .deb and .rpm
