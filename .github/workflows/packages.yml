@@ -67,6 +67,8 @@ jobs:
           mkdir -p pkgroot/usr/bin pkgroot/usr/share
           cp -a usr/bin pkgroot/usr/
           cp -a usr/share pkgroot/usr/
+          # Vendor py7zr (and deps) so backup works on distros without repo packages
+          python -m pip install --no-compile --target pkgroot/usr/lib/python3/dist-packages py7zr
           # Move/copy pure Python site-packages into Debian-friendly dist-packages paths
           python - <<'PY'
           import pathlib, shutil, sys
@@ -140,10 +142,9 @@ jobs:
             python3-setproctitle
             python3-pygments
             python3-regex
-            python3-py7zr
             gtk4
             libadwaita
-            vte-gtk4
+            vte291-gtk4
             rsync
             sshpass
           )
