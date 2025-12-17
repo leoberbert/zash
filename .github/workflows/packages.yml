@@ -96,25 +96,40 @@ jobs:
                   dest.parent.mkdir(parents=True, exist_ok=True)
                   shutil.copy2(src, dest)
 
+          # Relocate anything under /usr/local to /usr to match system python search paths
+          local_dir = root / "usr/local"
+          if local_dir.exists():
+              for child in local_dir.iterdir():
+                  dest = root / "usr" / child.name
+                  shutil.copytree(child, dest, dirs_exist_ok=True)
+              shutil.rmtree(local_dir, ignore_errors=True)
+
           # Collect any site-packages produced under different prefixes (e.g., /opt/hostedtoolcache/...)
           site_roots = []
           for pattern in (
+              "usr/local/lib/python3",
               "usr/local/lib/python3.*",
+              "usr/local/lib64/python3",
               "usr/local/lib64/python3.*",
+              "usr/lib/python3",
               "usr/lib/python3.*",
+              "usr/lib64/python3",
               "usr/lib64/python3.*",
+              "opt/**/lib/python3",
               "opt/**/lib/python3.*",
+              "opt/**/lib64/python3",
               "opt/**/lib64/python3.*",
           ):
               site_roots.extend(root.glob(pattern))
 
           for sr in site_roots:
-              sp = sr / "site-packages"
-              if not sp.is_dir():
-                  continue
-              for item in sp.iterdir():
-                  for target in targets:
-                      copy_item(item, target / item.name)
+              for pkg_dir_name in ("site-packages", "dist-packages"):
+                  sp = sr / pkg_dir_name
+                  if not sp.is_dir():
+                      continue
+                  for item in sp.iterdir():
+                      for target in targets:
+                          copy_item(item, target / item.name)
           # Drop any stray /opt prefix left by the build environment
           opt_dir = root / "opt"
           if opt_dir.exists():
