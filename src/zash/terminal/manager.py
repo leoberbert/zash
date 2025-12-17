@@ -33,7 +33,10 @@ def _get_psutil():
 import gi
 
 gi.require_version("Gtk", "4.0")
-gi.require_version("Vte", "3.91")
+try:
+    gi.require_version("Vte", "4.0")
+except ValueError:
+    gi.require_version("Vte", "2.91")
 from gi.repository import Gdk, GLib, GObject, Gtk, Vte
 
 from ..helpers import is_valid_url

@@ -215,7 +215,10 @@ class WindowActions:
                 # Import Vte to access Format enum
                 import gi
 
-                gi.require_version("Vte", "3.91")
+                try:
+    gi.require_version("Vte", "4.0")
+except ValueError:
+    gi.require_version("Vte", "2.91")
                 from gi.repository import Vte
 
                 # Use VTE4's get_text_selected with Format.TEXT parameter

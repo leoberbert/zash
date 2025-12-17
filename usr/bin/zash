@@ -1,29 +1,38 @@
 #!/bin/bash
 
-# Try running as a module if available
+# Select Python interpreter
 if command -v python3 >/dev/null 2>&1; then
-    python3 -m zash "$@" && exit 0
+    PYTHON_BIN="python3"
+elif command -v python >/dev/null 2>&1; then
+    PYTHON_BIN="python"
+else
+    echo "zash: python interpreter not found." >&2
+    exit 1
 fi
 
-# Fallback: search installed paths and run __init__.py directly
+# Build PYTHONPATH with common install locations
 SEARCH_DIRS=(
-    /usr/lib/python3/dist-packages/zash
-    /usr/lib/python3.*/dist-packages/zash
-    /usr/lib/python3.*/site-packages/zash
-    /usr/share/zash
+    /usr/lib/python3/dist-packages
+    /usr/lib/python3.*/dist-packages
+    /usr/lib/python3.*/site-packages
+    /usr/local/lib/python3.*/site-packages
+    /usr/share
 )
 
-for i in "${SEARCH_DIRS[@]}"; do
-    for d in $i; do
-        if [[ -e "$d/__init__.py" ]]; then
-            cd "$d"
-            exec python3 __init__.py "$@"
+PY_PATHS=()
+for pattern in "${SEARCH_DIRS[@]}"; do
+    for d in $pattern; do
+        if [[ -d "$d" ]]; then
+            PY_PATHS+=("$d")
         fi
     done
 done
 
-echo "zash: unable to locate installed module." >&2
-exit 1
+if [[ ${#PY_PATHS[@]} -gt 0 ]]; then
+    export PYTHONPATH="$(IFS=:; echo "${PY_PATHS[*]}")${PYTHONPATH:+":$PYTHONPATH"}"
+fi
+
+execute_zash="$PYTHON_BIN -m zash"
 
 execute_with_memory_verification() {
     # Changes the default memory allocator to reduce GTK4 memory leaks with verification

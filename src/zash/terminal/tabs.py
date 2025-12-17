@@ -9,7 +9,10 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-gi.require_version("Vte", "3.91")
+try:
+    gi.require_version("Vte", "4.0")
+except ValueError:
+    gi.require_version("Vte", "2.91")
 gi.require_version("Pango", "1.0")
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk, Pango, Vte
 

@@ -31,7 +31,10 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Tuple, Union
 
 import gi
 
-gi.require_version("Vte", "3.91")
+try:
+    gi.require_version("Vte", "4.0")
+except ValueError:
+    gi.require_version("Vte", "2.91")
 gi.require_version("GLib", "2.0")
 from gi.repository import GLib, Vte
 
