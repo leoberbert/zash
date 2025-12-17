@@ -8,6 +8,7 @@ depends=(
     'libadwaita'
     'libsecret'
     'python'
+    'python-pycairo'
     'python-py7zr'
     'python-gobject'
     'python-setproctitle'
@@ -16,6 +17,7 @@ depends=(
     'sshpass'
     'rsync'
     'vte4'
+    'gobject-introspection'
     'python-regex' # Optional, Improved syntax highlighting performance'
     'python-pygments' # Optional, Enhanced syntax highlighting in AI chat'
 )
