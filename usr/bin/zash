@@ -1,35 +1,9 @@
 #!/bin/bash
 
-# Select Python interpreter
-if command -v python3 >/dev/null 2>&1; then
-    PYTHON_BIN="python3"
-elif command -v python >/dev/null 2>&1; then
+# Choose available Python interpreter (prefer python3)
+PYTHON_BIN="python3"
+if ! command -v "$PYTHON_BIN" >/dev/null 2>&1; then
     PYTHON_BIN="python"
-else
-    echo "zash: python interpreter not found." >&2
-    exit 1
-fi
-
-# Build PYTHONPATH with common install locations
-SEARCH_DIRS=(
-    /usr/lib/python3/dist-packages
-    /usr/lib/python3.*/dist-packages
-    /usr/lib/python3.*/site-packages
-    /usr/local/lib/python3.*/site-packages
-    /usr/share
-)
-
-PY_PATHS=()
-for pattern in "${SEARCH_DIRS[@]}"; do
-    for d in $pattern; do
-        if [[ -d "$d" ]]; then
-            PY_PATHS+=("$d")
-        fi
-    done
-done
-
-if [[ ${#PY_PATHS[@]} -gt 0 ]]; then
-    export PYTHONPATH="$(IFS=:; echo "${PY_PATHS[*]}")${PYTHONPATH:+":$PYTHONPATH"}"
 fi
 
 execute_zash="$PYTHON_BIN -m zash"

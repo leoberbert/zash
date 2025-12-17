@@ -15,10 +15,7 @@ from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Tuple
 
 import gi
 
-try:
-    gi.require_version("Vte", "4.0")
-except ValueError:
-    gi.require_version("Vte", "2.91")
+gi.require_version("Vte", "3.91")
 from gi.repository import GLib, Vte
 
 if TYPE_CHECKING:
