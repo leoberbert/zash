@@ -8,7 +8,7 @@ depends=(
     'libadwaita'
     'libsecret'
     'python'
-    'python-pycairo'
+    'python-cairo'
     'python-py7zr'
     'python-gobject'
     'python-setproctitle'
