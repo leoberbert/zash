@@ -140,13 +140,22 @@ jobs:
             rsync
             sshpass
           )
+          DEB_DEP_ARGS=()
+          for dep in "${DEB_DEPS[@]}"; do
+            DEB_DEP_ARGS+=(--depends "$dep")
+          done
+          RPM_DEP_ARGS=()
+          for dep in "${RPM_DEPS[@]}"; do
+            RPM_DEP_ARGS+=(--depends "$dep")
+          done
+
           fpm -s dir -t deb \
             -n zash \
             -v "${VERSION}" \
             --iteration 1 \
             --architecture amd64 \
             --description "Zash terminal emulator" \
-            $(printf -- "--depends %s " "${DEB_DEPS[@]}") \
+            "${DEB_DEP_ARGS[@]}" \
             -C pkgroot \
             --prefix / \
             .
@@ -156,7 +165,7 @@ jobs:
             --iteration 1 \
             --architecture x86_64 \
             --description "Zash terminal emulator" \
-            $(printf -- "--depends %s " "${RPM_DEPS[@]}") \
+            "${RPM_DEP_ARGS[@]}" \
             -C pkgroot \
             --prefix / \
             .
