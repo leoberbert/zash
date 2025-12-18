@@ -236,13 +236,11 @@ jobs:
 
           target_version = sorted(candidate_versions, key=ver_key)[-1]
 
-          targets = {
+          target_site_dirs = {
               root / f"usr/lib/python{target_version}/site-packages",
               root / f"usr/lib64/python{target_version}/site-packages",
-              root / f"usr/lib/python{target_version}/dist-packages",
-              root / f"usr/lib64/python{target_version}/dist-packages",
           }
-          for t in targets:
+          for t in target_site_dirs:
               t.mkdir(parents=True, exist_ok=True)
 
           def copy_item(src: pathlib.Path, dest: pathlib.Path):
@@ -265,12 +263,18 @@ jobs:
               site_roots.extend(root.glob(pattern))
 
           for sr in site_roots:
-              sp = sr / "site-packages"
-              if not sp.is_dir():
-                  continue
-              for item in sp.iterdir():
-                  for target in targets:
-                      copy_item(item, target / item.name)
+              for pkg_dir_name in ("site-packages", "dist-packages"):
+                  sp = sr / pkg_dir_name
+                  if not sp.is_dir():
+                      continue
+                  for item in sp.iterdir():
+                      for target in target_site_dirs:
+                          copy_item(item, target / item.name)
+
+          # Remove dist-packages everywhere (we only want site-packages owned by RPM)
+          for dist_dir in root.glob("usr/**/dist-packages"):
+              shutil.rmtree(dist_dir, ignore_errors=True)
+
           # Drop any stray /opt prefix left by the build environment
           opt_dir = root / "opt"
           if opt_dir.exists():
