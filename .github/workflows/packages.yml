@@ -70,6 +70,23 @@ jobs:
           # Vendor py7zr (and deps) so backup works on distros without repo packages
           python -m pip install --no-compile --target pkgroot/usr/lib/python3/site-packages py7zr
           python -m pip install --no-compile --target pkgroot/usr/lib64/python3/site-packages py7zr
+          # Drop psutil if pulled in by py7zr; rely on system python3-psutil package
+          python - <<'PY'
+          import pathlib, shutil
+
+          root = pathlib.Path("pkgroot")
+          for pattern in [
+              "usr/lib/python3*/site-packages/psutil*",
+              "usr/lib/python3*/dist-packages/psutil*",
+              "usr/lib64/python3*/site-packages/psutil*",
+              "usr/lib64/python3*/dist-packages/psutil*",
+          ]:
+              for path in root.glob(pattern):
+                  if path.is_dir():
+                      shutil.rmtree(path, ignore_errors=True)
+                  else:
+                      path.unlink(missing_ok=True)
+          PY
           # Relocate site-packages into distro-friendly paths
           python - <<'PY'
           import pathlib, shutil, sys
@@ -219,6 +236,23 @@ jobs:
           # Vendor py7zr (and deps) so backup works on distros without repo packages
           python -m pip install --no-compile --target pkgroot/usr/lib/python3/site-packages py7zr
           python -m pip install --no-compile --target pkgroot/usr/lib64/python3/site-packages py7zr
+          # Drop psutil if pulled in by py7zr; rely on system python3-psutil package
+          python - <<'PY'
+          import pathlib, shutil
+
+          root = pathlib.Path("pkgroot")
+          for pattern in [
+              "usr/lib/python3*/site-packages/psutil*",
+              "usr/lib/python3*/dist-packages/psutil*",
+              "usr/lib64/python3*/site-packages/psutil*",
+              "usr/lib64/python3*/dist-packages/psutil*",
+          ]:
+              for path in root.glob(pattern):
+                  if path.is_dir():
+                      shutil.rmtree(path, ignore_errors=True)
+                  else:
+                      path.unlink(missing_ok=True)
+          PY
           # Relocate site-packages into distro-friendly paths
           python - <<'PY'
           import pathlib, shutil, sys
