@@ -284,7 +284,6 @@ jobs:
                   if py_dir.name != f"python{target_version}":
                       shutil.rmtree(py_dir, ignore_errors=True)
           PY
-          PY
           ls -R pkgroot
       - name: Build .rpm
         run: |
