@@ -216,15 +216,24 @@ jobs:
 
           root = pathlib.Path("pkgroot")
           build_py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
-          target_py_ver = "3.14"
-          targets = [
-              # Fedora-style
-              root / f"usr/lib/python{target_py_ver}/site-packages",
-              root / f"usr/lib64/python{target_py_ver}/site-packages",
-              # Keep generic dist-packages for safety
-              root / "usr/lib/python3/dist-packages",
-              root / f"usr/lib/python{build_py_ver}/dist-packages",
-          ]
+
+          # Collect candidate Python versions to install into:
+          # - the build interpreter version
+          # - any versions already present under pkgroot/usr/**/python3.*
+          # - Fedora current default (3.14) as a fallback
+          candidate_versions = {build_py_ver, "3.14"}
+          for path in root.glob("usr/**/python3.*"):
+              try:
+                  candidate_versions.add(path.name.replace("python", ""))
+              except Exception:
+                  pass
+
+          targets = set()
+          for ver in candidate_versions:
+              targets.add(root / f"usr/lib/python{ver}/site-packages")
+              targets.add(root / f"usr/lib64/python{ver}/site-packages")
+              targets.add(root / f"usr/lib/python{ver}/dist-packages")
+              targets.add(root / f"usr/lib64/python{ver}/dist-packages")
           for t in targets:
               t.mkdir(parents=True, exist_ok=True)
 
