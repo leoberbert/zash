@@ -67,9 +67,6 @@ jobs:
           mkdir -p pkgroot/usr/bin pkgroot/usr/share
           cp -a usr/bin pkgroot/usr/
           cp -a usr/share pkgroot/usr/
-          # Vendor py7zr (and deps) so backup works on distros without repo packages
-          python -m pip install --no-compile --target pkgroot/usr/lib/python3/site-packages py7zr
-          python -m pip install --no-compile --target pkgroot/usr/lib64/python3/site-packages py7zr
           # Move/copy pure Python site-packages into Debian-friendly dist-packages paths
           python - <<'PY'
           import pathlib, shutil, sys
@@ -77,66 +74,31 @@ jobs:
           root = pathlib.Path("pkgroot")
           py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
           targets = [
-              root / "usr/lib64/python3/site-packages",        # Fedora-style lib64
-              root / f"usr/lib64/python{py_ver}/site-packages",
-              root / "usr/lib64/python3/dist-packages",        # fallback dist path if used
-              root / f"usr/lib64/python{py_ver}/dist-packages",
-              root / "usr/lib/python3/site-packages",
-              root / f"usr/lib/python{py_ver}/site-packages",
-              root / "usr/lib/python3/dist-packages",          # Debian-style
-              root / f"usr/lib/python{py_ver}/dist-packages",  # Debian-style with version
+              root / "usr/lib/python3/dist-packages",
+              root / f"usr/lib/python{py_ver}/dist-packages",
           ]
           for t in targets:
               t.mkdir(parents=True, exist_ok=True)
 
           def copy_item(src: pathlib.Path, dest: pathlib.Path):
-              # Avoid SameFileError when src/dest resolve to the same path
-              try:
-                  if src.resolve() == dest.resolve():
-                      return
-              except Exception:
-                  pass
-
               if src.is_dir():
                   shutil.copytree(src, dest, dirs_exist_ok=True)
               else:
                   dest.parent.mkdir(parents=True, exist_ok=True)
                   shutil.copy2(src, dest)
 
-          # Relocate anything under /usr/local to /usr to match system python search paths
-          local_dir = root / "usr/local"
-          if local_dir.exists():
-              for child in local_dir.iterdir():
-                  dest = root / "usr" / child.name
-                  shutil.copytree(child, dest, dirs_exist_ok=True)
-              shutil.rmtree(local_dir, ignore_errors=True)
-
           # Collect any site-packages produced under different prefixes (e.g., /opt/hostedtoolcache/...)
           site_roots = []
-          for pattern in (
-              "usr/local/lib/python3",
-              "usr/local/lib/python3.*",
-              "usr/local/lib64/python3",
-              "usr/local/lib64/python3.*",
-              "usr/lib/python3",
-              "usr/lib/python3.*",
-              "usr/lib64/python3",
-              "usr/lib64/python3.*",
-              "opt/**/lib/python3",
-              "opt/**/lib/python3.*",
-              "opt/**/lib64/python3",
-              "opt/**/lib64/python3.*",
-          ):
+          for pattern in ("usr/local/lib/python3.*", "opt/**/lib/python3.*"):
               site_roots.extend(root.glob(pattern))
 
           for sr in site_roots:
-              for pkg_dir_name in ("site-packages", "dist-packages"):
-                  sp = sr / pkg_dir_name
-                  if not sp.is_dir():
-                      continue
-                  for item in sp.iterdir():
-                      for target in targets:
-                          copy_item(item, target / item.name)
+              sp = sr / "site-packages"
+              if not sp.is_dir():
+                  continue
+              for item in sp.iterdir():
+                  for target in targets:
+                      copy_item(item, target / item.name)
           # Drop any stray /opt prefix left by the build environment
           opt_dir = root / "opt"
           if opt_dir.exists():
@@ -178,9 +140,10 @@ jobs:
             python3-setproctitle
             python3-pygments
             python3-regex
+            python3-py7zr
             gtk4
             libadwaita
-            vte291-gtk4
+            vte-gtk4
             rsync
             sshpass
           )
