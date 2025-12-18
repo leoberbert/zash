@@ -450,7 +450,7 @@ class ZashApp(Adw.Application):
         from datetime import datetime
         file_dialog = Gtk.FileDialog(title=_("Save Backup As..."), modal=True)
         timestamp = datetime.now().strftime("%Y-%m-%d")
-        file_dialog.set_initial_name(f"zash-backup-{timestamp}.7z")
+        file_dialog.set_initial_name(f"zash-backup-{timestamp}.tar.gz")
         file_dialog.save(self.get_active_window(), None, self._on_backup_file_selected)
 
     def _on_backup_file_selected(self, dialog, result):
@@ -458,58 +458,12 @@ class ZashApp(Adw.Application):
         try:
             gio_file = dialog.save_finish(result)
             if gio_file:
-                self._prompt_for_backup_password(gio_file.get_path())
+                self._execute_backup(gio_file.get_path())
         except GLib.Error as e:
             if not e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
                 self._show_error_dialog(_("Backup Error"), e.message)
 
-    def _prompt_for_backup_password(self, target_path: str):
-        """Shows a dialog to get and confirm a password for the backup."""
-        dialog = Adw.MessageDialog(
-            transient_for=self.get_active_window(),
-            heading=_("Set Backup Password"),
-            body=_("Please enter a password to encrypt the backup file."),
-            close_response="cancel",
-        )
-        content = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
-        pass_entry = Gtk.PasswordEntry(
-            placeholder_text=_("Password"), show_peek_icon=True
-        )
-        confirm_entry = Gtk.PasswordEntry(
-            placeholder_text=_("Confirm Password"), show_peek_icon=True
-        )
-        content.append(pass_entry)
-        content.append(confirm_entry)
-        dialog.set_extra_child(content)
-        dialog.add_response("cancel", _("Cancel"))
-        dialog.add_response("backup", _("Create Backup"))
-        dialog.set_default_response("backup")
-        dialog.set_response_appearance("backup", Adw.ResponseAppearance.SUGGESTED)
-
-        def on_response(d, response_id):
-            if response_id == "backup":
-                pwd1 = pass_entry.get_text()
-                pwd2 = confirm_entry.get_text()
-                if not pwd1:
-                    self._show_error_dialog(
-                        _("Password Error"), _("Password cannot be empty."), parent=d
-                    )
-                    return
-                if pwd1 != pwd2:
-                    self._show_error_dialog(
-                        _("Password Error"), _("Passwords do not match."), parent=d
-                    )
-                    return
-
-                d.close()
-                self._execute_backup(target_path, pwd1)
-            else:
-                d.close()
-
-        dialog.connect("response", on_response)
-        dialog.present()
-
-    def _execute_backup(self, target_path: str, password: str):
+    def _execute_backup(self, target_path: str):
         """Executes the backup process in a separate thread."""
         active_window = self.get_active_window()
         if not active_window:
@@ -525,12 +479,8 @@ class ZashApp(Adw.Application):
                     Path(SETTINGS_FILE),
                 ]
                 layouts_dir = Path(LAYOUT_DIR)
-                self.backup_manager.create_encrypted_backup(
-                    target_path,
-                    password,
-                    active_window.session_store,
-                    source_files,
-                    layouts_dir,
+                self.backup_manager.create_backup(
+                    target_path, active_window.session_store, source_files, layouts_dir
                 )
                 GLib.idle_add(
                     self._show_info_dialog,
@@ -571,7 +521,7 @@ class ZashApp(Adw.Application):
         if response_id == "restore":
             file_dialog = Gtk.FileDialog(title=_("Select Backup File"), modal=True)
             file_filter = Gtk.FileFilter()
-            file_filter.add_pattern("*.7z")
+            file_filter.add_pattern("*.tar.gz")
             file_filter.set_name(_("Backup Files"))
             filters = Gio.ListStore.new(Gtk.FileFilter)
             filters.append(file_filter)
@@ -585,39 +535,12 @@ class ZashApp(Adw.Application):
         try:
             gio_file = dialog.open_finish(result)
             if gio_file:
-                self._prompt_for_restore_password(gio_file.get_path())
+                self._execute_restore(gio_file.get_path())
         except GLib.Error as e:
             if not e.matches(Gio.io_error_quark(), Gio.IOErrorEnum.CANCELLED):
                 self._show_error_dialog(_("Restore Error"), e.message)
 
-    def _prompt_for_restore_password(self, source_path: str):
-        """Shows a dialog to get the password for the backup file."""
-        dialog = Adw.MessageDialog(
-            transient_for=self.get_active_window(),
-            heading=_("Enter Backup Password"),
-            body=_("Please enter the password for the selected backup file."),
-            close_response="cancel",
-        )
-        pass_entry = Gtk.PasswordEntry(
-            placeholder_text=_("Password"), show_peek_icon=True
-        )
-        dialog.set_extra_child(pass_entry)
-        dialog.add_response("cancel", _("Cancel"))
-        dialog.add_response("restore", _("Restore"))
-        dialog.set_default_response("restore")
-        dialog.set_response_appearance("restore", Adw.ResponseAppearance.SUGGESTED)
-
-        def on_response(d, response_id):
-            if response_id == "restore":
-                password = pass_entry.get_text()
-                if password:
-                    self._execute_restore(source_path, password)
-            d.close()
-
-        dialog.connect("response", on_response)
-        dialog.present()
-
-    def _execute_restore(self, source_path: str, password: str):
+    def _execute_restore(self, source_path: str):
         """Executes the restore process in a separate thread."""
         active_window = self.get_active_window()
         toast = Adw.Toast(title=_("Restoring from backup..."), timeout=0)
@@ -625,8 +548,8 @@ class ZashApp(Adw.Application):
 
         def restore_thread():
             try:
-                self.backup_manager.restore_from_encrypted_backup(
-                    source_path, password, self.platform_info.config_dir
+                self.backup_manager.restore_backup(
+                    source_path, self.platform_info.config_dir
                 )
                 GLib.idle_add(self._show_restore_success_dialog)
             except Exception as e:

@@ -14,7 +14,7 @@ license = "MIT"
 license-files = ["LICENSE"]
 readme = "README.md"
 requires-python = ">=3.8"
-dependencies = ["PyGObject", "pycairo", "setproctitle", "requests", "psutil", "regex; extra == 'performance'", "Pygments; extra == 'syntax-highlighting'", "py7zr; extra == 'backup'"]
+dependencies = ["PyGObject", "pycairo", "setproctitle", "requests", "psutil", "regex; extra == 'performance'", "Pygments; extra == 'syntax-highlighting'"]
 
 [project.gui-scripts]
 zash = "zash:main"
@@ -26,8 +26,8 @@ Issues = "https://github.com/leoberbert/zash/issues"
 [project.optional-dependencies]
 performance = ["regex"]
 syntax-highlighting = ["Pygments"]
-backup = ["py7zr"]
-all = ["regex", "Pygments", "py7zr"]
+backup = []
+all = ["regex", "Pygments"]
 
 [build-system]
 requires = ["uv_build"]

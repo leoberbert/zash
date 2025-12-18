@@ -2,6 +2,7 @@
 
 import json
 import shutil
+import tarfile
 import tempfile
 import threading
 from pathlib import Path
@@ -14,18 +15,8 @@ from .logger import get_logger
 from .platform import get_config_directory
 
 
-def _get_py7zr():
-    """Lazy import for py7zr module. Only called when backup/restore is used."""
-    try:
-        import py7zr
-
-        return py7zr
-    except ImportError:
-        return None
-
-
 class BackupManager:
-    """Manages encrypted backup and recovery operations."""
+    """Manages backup and recovery operations (tar.gz archives, no encryption)."""
 
     def __init__(self, backup_dir: Optional[Path] = None):
         self.logger = get_logger("zash.backup")
@@ -38,20 +29,18 @@ class BackupManager:
             f"Backup manager initialized with directory: {self.backup_dir}"
         )
 
-    def create_encrypted_backup(
+    def create_backup(
         self,
         target_file_path: str,
-        password: str,
         sessions_store: Gio.ListStore,
         source_files: List[Path],
         layouts_dir: Path,
     ) -> None:
         """
-        Creates a single, password-protected .7z backup file.
+        Creates a single .tar.gz backup file (no encryption).
 
         Args:
             target_file_path: The full path where the backup file will be saved.
-            password: The password for encrypting the backup.
             sessions_store: The session store to export passwords from.
             source_files: List of primary config files to include (e.g., sessions.json).
             layouts_dir: The directory containing layout files to be backed up.
@@ -59,13 +48,6 @@ class BackupManager:
         Raises:
             StorageWriteError: If the backup process fails.
         """
-        py7zr = _get_py7zr()
-        if not py7zr:
-            raise StorageWriteError(
-                target_file_path,
-                "The 'py7zr' library is required for encrypted backups. Please install it.",
-            )
-
         with self._lock:
             with tempfile.TemporaryDirectory(prefix="zash_backup_") as tmpdir:
                 temp_path = Path(tmpdir)
@@ -90,40 +72,29 @@ class BackupManager:
                         with open(temp_path / "passwords.json", "w") as f:
                             json.dump(passwords, f, indent=2)
 
-                    # 4. Create the encrypted 7z archive
-                    self.logger.info(f"Creating encrypted backup at {target_file_path}")
-                    with py7zr.SevenZipFile(
-                        target_file_path, "w", password=password
-                    ) as archive:
-                        archive.writeall(temp_path, arcname="")
+                    # 4. Create the tar.gz archive
+                    self.logger.info(f"Creating backup at {target_file_path}")
+                    with tarfile.open(target_file_path, "w:gz") as archive:
+                        for item in temp_path.rglob("*"):
+                            archive.add(item, arcname=item.relative_to(temp_path))
 
-                    self.logger.info("Encrypted backup created successfully.")
+                    self.logger.info("Backup created successfully.")
 
                 except Exception as e:
-                    self.logger.error(f"Failed to create encrypted backup: {e}")
+                    self.logger.error(f"Failed to create backup: {e}")
                     raise StorageWriteError(target_file_path, str(e)) from e
 
-    def restore_from_encrypted_backup(
-        self, source_file_path: str, password: str, config_dir: Path
-    ) -> None:
+    def restore_backup(self, source_file_path: str, config_dir: Path) -> None:
         """
-        Restores configuration from a password-protected .7z backup file.
+        Restores configuration from a .tar.gz backup file.
 
         Args:
-            source_file_path: The path to the .7z backup file.
-            password: The password to decrypt the backup.
+            source_file_path: The path to the .tar.gz backup file.
             config_dir: The root configuration directory to restore files to.
 
         Raises:
             StorageReadError: If the restore process fails.
         """
-        py7zr = _get_py7zr()
-        if not py7zr:
-            raise StorageReadError(
-                source_file_path,
-                "The 'py7zr' library is required for encrypted backups. Please install it.",
-            )
-
         with self._lock:
             with tempfile.TemporaryDirectory(prefix="zash_restore_") as tmpdir:
                 temp_path = Path(tmpdir)
@@ -132,9 +103,7 @@ class BackupManager:
                 try:
                     # 1. Extract the archive
                     self.logger.info(f"Extracting backup from {source_file_path}")
-                    with py7zr.SevenZipFile(
-                        source_file_path, "r", password=password
-                    ) as archive:
+                    with tarfile.open(source_file_path, "r:gz") as archive:
                         archive.extractall(path=temp_path)
 
                     # 2. Restore files
@@ -165,20 +134,39 @@ class BackupManager:
                         self.logger.info(f"Imported {imported_count} passwords.")
 
                     self.logger.info(
-                        "Restore from encrypted backup completed successfully."
+                        "Restore from backup completed successfully."
                     )
 
-                except py7zr.exceptions.PasswordRequired:
-                    self.logger.error("Password required for backup file.")
-                    raise StorageReadError(source_file_path, "Password required.")
-                except py7zr.exceptions.Bad7zFile:
-                    self.logger.error("Bad 7z file or incorrect password.")
+                except tarfile.TarError as e:
+                    self.logger.error(f"Invalid tar.gz backup: {e}")
                     raise StorageReadError(
-                        source_file_path, "Incorrect password or corrupted file."
-                    )
+                        source_file_path, "Invalid backup archive."
+                    ) from e
                 except Exception as e:
-                    self.logger.error(f"Failed to restore from encrypted backup: {e}")
+                    self.logger.error(f"Failed to restore from backup: {e}")
                     raise StorageReadError(source_file_path, str(e)) from e
+
+    # Backward-compatible wrappers (password is ignored)
+    def create_encrypted_backup(
+        self,
+        target_file_path: str,
+        password: str,
+        sessions_store: Gio.ListStore,
+        source_files: List[Path],
+        layouts_dir: Path,
+    ) -> None:
+        self.logger.warning(
+            "Encrypted backups are no longer supported; creating unencrypted tar.gz."
+        )
+        self.create_backup(target_file_path, sessions_store, source_files, layouts_dir)
+
+    def restore_from_encrypted_backup(
+        self, source_file_path: str, password: str, config_dir: Path
+    ) -> None:
+        self.logger.warning(
+            "Encrypted backups are no longer supported; restoring from tar.gz."
+        )
+        self.restore_backup(source_file_path, config_dir)
 
 
 _backup_manager: Optional[BackupManager] = None
