@@ -293,6 +293,14 @@ jobs:
         run: |
           set -e
           VERSION="${GITHUB_REF##*/v}"
+          cat > cleanup-rpm.sh <<'EOF'
+          #!/bin/bash
+          rm -rf /usr/lib/python*/site-packages/zash \
+                 /usr/lib64/python*/site-packages/zash \
+                 /usr/lib/python*/site-packages/zash-*.dist-info \
+                 /usr/lib64/python*/site-packages/zash-*.dist-info
+          EOF
+          chmod +x cleanup-rpm.sh
           RPM_DEPS=(
             python3-gobject
             python3-cairo
@@ -318,7 +326,7 @@ jobs:
             --iteration 1 \
             --architecture x86_64 \
             --description "Zash terminal emulator" \
-            --after-remove 'rm -rf /usr/lib/python*/site-packages/zash /usr/lib64/python*/site-packages/zash /usr/lib/python*/site-packages/zash-*.dist-info /usr/lib64/python*/site-packages/zash-*.dist-info' \
+            --after-remove cleanup-rpm.sh \
             "${RPM_DEP_ARGS[@]}" \
             -C pkgroot \
             --prefix / \
