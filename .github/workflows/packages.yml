@@ -40,8 +40,8 @@ jobs:
           name: zash-arch
           path: pkgbuild/*.pkg.tar.zst
 
-  deb_rpm:
-    name: DEB & RPM via fpm
+  deb:
+    name: DEB via fpm
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -166,6 +166,102 @@ jobs:
             -C pkgroot \
             --prefix / \
             .
+      - name: Upload DEB
+        uses: actions/upload-artifact@v4
+        with:
+          name: zash-deb
+          path: |
+            *.deb
+
+  rpm:
+    name: RPM via fpm
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build installer
+          python -m build --wheel
+      - name: Install fpm toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ruby ruby-dev rubygems build-essential rpm
+          sudo gem install --no-document fpm
+      - name: Stage files for packaging
+        run: |
+          set -e
+          VERSION="${GITHUB_REF##*/v}"
+          mkdir -p pkgroot
+          python -m installer --destdir pkgroot dist/*.whl
+          mkdir -p pkgroot/usr/bin pkgroot/usr/share
+          cp -a usr/bin pkgroot/usr/
+          cp -a usr/share pkgroot/usr/
+          # Move/copy pure Python site-packages into Debian-friendly dist-packages paths
+          python - <<'PY'
+          import pathlib, shutil, sys
+
+          root = pathlib.Path("pkgroot")
+          py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
+          targets = [
+              root / "usr/lib/python3/dist-packages",
+              root / f"usr/lib/python{py_ver}/dist-packages",
+          ]
+          for t in targets:
+              t.mkdir(parents=True, exist_ok=True)
+
+          def copy_item(src: pathlib.Path, dest: pathlib.Path):
+              if src.is_dir():
+                  shutil.copytree(src, dest, dirs_exist_ok=True)
+              else:
+                  dest.parent.mkdir(parents=True, exist_ok=True)
+                  shutil.copy2(src, dest)
+
+          # Collect any site-packages produced under different prefixes (e.g., /opt/hostedtoolcache/...)
+          site_roots = []
+          for pattern in ("usr/local/lib/python3.*", "opt/**/lib/python3.*"):
+              site_roots.extend(root.glob(pattern))
+
+          for sr in site_roots:
+              sp = sr / "site-packages"
+              if not sp.is_dir():
+                  continue
+              for item in sp.iterdir():
+                  for target in targets:
+                      copy_item(item, target / item.name)
+          # Drop any stray /opt prefix left by the build environment
+          opt_dir = root / "opt"
+          if opt_dir.exists():
+              shutil.rmtree(opt_dir, ignore_errors=True)
+          PY
+          ls -R pkgroot
+      - name: Build .rpm
+        run: |
+          set -e
+          VERSION="${GITHUB_REF##*/v}"
+          RPM_DEPS=(
+            python3-gobject
+            python3-cairo
+            python3-requests
+            python3-psutil
+            python3-setproctitle
+            python3-pygments
+            python3-regex
+            python3-py7zr
+            gtk4
+            libadwaita
+            vte-gtk4
+            rsync
+            sshpass
+          )
+          RPM_DEP_ARGS=()
+          for dep in "${RPM_DEPS[@]}"; do
+            RPM_DEP_ARGS+=(--depends "$dep")
+          done
+
           fpm -s dir -t rpm \
             -n zash \
             -v "${VERSION}" \
@@ -176,17 +272,16 @@ jobs:
             -C pkgroot \
             --prefix / \
             .
-      - name: Upload DEB/RPM
+      - name: Upload RPM
         uses: actions/upload-artifact@v4
         with:
-          name: zash-deb-rpm
+          name: zash-rpm
           path: |
-            *.deb
             *.rpm
 
   release:
     name: Publish Release Assets
-    needs: [arch, deb_rpm]
+    needs: [arch, deb, rpm]
     runs-on: ubuntu-latest
     if: ${{ startsWith(github.ref, 'refs/tags/') && always() }}
     steps:
@@ -196,11 +291,17 @@ jobs:
         with:
           name: zash-arch
           path: artifacts
-      - name: Download DEB/RPM artifacts
+      - name: Download DEB artifacts
         uses: actions/download-artifact@v4
-        if: ${{ needs.deb_rpm.result == 'success' }}
+        if: ${{ needs.deb.result == 'success' }}
         with:
-          name: zash-deb-rpm
+          name: zash-deb
+          path: artifacts
+      - name: Download RPM artifacts
+        uses: actions/download-artifact@v4
+        if: ${{ needs.rpm.result == 'success' }}
+        with:
+          name: zash-rpm
           path: artifacts
       - name: Download RPM/SRPM artifacts
         uses: actions/download-artifact@v4
@@ -227,7 +328,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
       - name: Publish GitHub Release assets
         uses: softprops/action-gh-release@v1
-        if: ${{ needs.arch.result == 'success' || needs.deb_rpm.result == 'success' || needs.rpm_srpm.result == 'success' }}
+        if: ${{ needs.arch.result == 'success' || needs.deb.result == 'success' || needs.rpm.result == 'success' || needs.rpm_srpm.result == 'success' }}
         with:
           files: ${{ steps.collect.outputs.files }}
         env:
