@@ -217,23 +217,31 @@ jobs:
           root = pathlib.Path("pkgroot")
           build_py_ver = f"{sys.version_info.major}.{sys.version_info.minor}"
 
-          # Collect candidate Python versions to install into:
-          # - the build interpreter version
-          # - any versions already present under pkgroot/usr/**/python3.*
-          # - Fedora current default (3.14) as a fallback
-          candidate_versions = {build_py_ver, "3.14"}
+          # Detect python versions seen in pkgroot and pick the highest as target (Fedora default today: 3.14)
+          candidate_versions = set()
+          candidate_versions.add(build_py_ver)
           for path in root.glob("usr/**/python3.*"):
               try:
                   candidate_versions.add(path.name.replace("python", ""))
               except Exception:
                   pass
+          if "3.14" not in candidate_versions:
+              candidate_versions.add("3.14")
 
-          targets = set()
-          for ver in candidate_versions:
-              targets.add(root / f"usr/lib/python{ver}/site-packages")
-              targets.add(root / f"usr/lib64/python{ver}/site-packages")
-              targets.add(root / f"usr/lib/python{ver}/dist-packages")
-              targets.add(root / f"usr/lib64/python{ver}/dist-packages")
+          def ver_key(v: str):
+              try:
+                  return tuple(int(p) for p in v.split("."))
+              except Exception:
+                  return (0,)
+
+          target_version = sorted(candidate_versions, key=ver_key)[-1]
+
+          targets = {
+              root / f"usr/lib/python{target_version}/site-packages",
+              root / f"usr/lib64/python{target_version}/site-packages",
+              root / f"usr/lib/python{target_version}/dist-packages",
+              root / f"usr/lib64/python{target_version}/dist-packages",
+          }
           for t in targets:
               t.mkdir(parents=True, exist_ok=True)
 
@@ -267,6 +275,15 @@ jobs:
           opt_dir = root / "opt"
           if opt_dir.exists():
               shutil.rmtree(opt_dir, ignore_errors=True)
+
+          # Remove any python3.* trees that are not the chosen target_version to avoid leftover files in the RPM
+          for base in (root / "usr/lib", root / "usr/lib64"):
+              if not base.exists():
+                  continue
+              for py_dir in base.glob("python3.*"):
+                  if py_dir.name != f"python{target_version}":
+                      shutil.rmtree(py_dir, ignore_errors=True)
+          PY
           PY
           ls -R pkgroot
       - name: Build .rpm
